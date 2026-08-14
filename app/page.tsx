@@ -30,6 +30,36 @@ export default function Home() {
   const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
   const [running, setRunning] = useState(false);
   const recentRef = useRef<string[]>([]);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Browsers only allow sound after a user gesture — call this from Start.
+  const unlockAudio = () => {
+    if (typeof window === "undefined") return;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    audioCtxRef.current.resume().catch(() => {});
+  };
+
+  const playAlarm = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    if (!ctx || ctx.state !== "running") return;
+    const start = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const t = start + i * 0.35;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(880, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.32);
+    }
+  }, []);
 
   const fetchQuestion = useCallback(async () => {
     setLoading(true);
@@ -59,13 +89,14 @@ export default function Home() {
     if (!running || !timerEnabled) return;
     if (secondsLeft <= 0) {
       setRunning(false);
+      playAlarm();
       return;
     }
     const id = setInterval(() => {
       setSecondsLeft((s) => s - 1);
     }, 1000);
     return () => clearInterval(id);
-  }, [running, timerEnabled, secondsLeft]);
+  }, [running, timerEnabled, secondsLeft, playAlarm]);
 
   const timeUp = timerEnabled && secondsLeft <= 0;
 
@@ -74,6 +105,7 @@ export default function Home() {
       setSecondsLeft(ROUND_SECONDS);
       setRunning(false);
     } else {
+      unlockAudio();
       setRunning((r) => !r);
     }
   };
