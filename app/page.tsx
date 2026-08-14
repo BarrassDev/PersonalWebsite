@@ -41,6 +41,23 @@ export default function Home() {
     audioCtxRef.current.resume().catch(() => {});
   };
 
+  const playTick = useCallback((urgent: boolean) => {
+    const ctx = audioCtxRef.current;
+    if (!ctx || ctx.state !== "running") return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(urgent ? 1500 : 1000, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(urgent ? 0.25 : 0.12, t + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.06);
+  }, []);
+
   const playAlarm = useCallback(() => {
     const ctx = audioCtxRef.current;
     if (!ctx || ctx.state !== "running") return;
@@ -93,10 +110,16 @@ export default function Home() {
       return;
     }
     const id = setInterval(() => {
-      setSecondsLeft((s) => s - 1);
+      setSecondsLeft((s) => {
+        const next = s - 1;
+        if (next > 0) {
+          playTick(next <= 10);
+        }
+        return next;
+      });
     }, 1000);
     return () => clearInterval(id);
-  }, [running, timerEnabled, secondsLeft, playAlarm]);
+  }, [running, timerEnabled, secondsLeft, playAlarm, playTick]);
 
   const timeUp = timerEnabled && secondsLeft <= 0;
 
