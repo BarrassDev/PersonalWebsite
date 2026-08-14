@@ -4,8 +4,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROUND_SECONDS = 30;
 
+// Card types from Listography: The Game — each question gets one at random.
+const CARD_TYPES = [
+  {
+    name: "One-on-One",
+    rule: "match with exactly one other player — score for each answer that only one other person also wrote",
+  },
+  {
+    name: "Threefold",
+    rule: "write up to 3 answers — score a point every time an answer matches another player's",
+  },
+  {
+    name: "Forgotten Four",
+    rule: "write 4 answers — score for each answer nobody else wrote down",
+  },
+] as const;
+
+type CardType = (typeof CARD_TYPES)[number];
+
 export default function Home() {
   const [question, setQuestion] = useState<string | null>(null);
+  const [cardType, setCardType] = useState<CardType>(CARD_TYPES[0]);
   const [loading, setLoading] = useState(true);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
@@ -27,9 +46,9 @@ export default function Home() {
       recentRef.current = [...recentRef.current, data.question].slice(-20);
     } catch {
       setQuestion("List your favorite movies of all time");
-    } finally {
-      setLoading(false);
     }
+    setCardType(CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)]);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -75,6 +94,13 @@ export default function Home() {
           {loading ? "Thinking of a good one…" : question}
         </p>
 
+        {!loading && (
+          <p className="card-type">
+            <span className="card-type-name">{cardType.name}</span>
+            For this question, {cardType.rule}.
+          </p>
+        )}
+
         {timerEnabled && (
           <>
             <div
@@ -117,14 +143,10 @@ export default function Home() {
         </label>
       </div>
 
-      <div className="hint">
-        <p>Grab a pen. When the timer starts, everyone writes their list.</p>
-        <p>
-          When time&apos;s up, compare lists and pick a way to score: a point for
-          every answer that <em>matches</em> another player&apos;s, or a point for
-          every answer <em>nobody else</em> wrote down.
-        </p>
-      </div>
+      <p className="hint">
+        Grab a pen. When the timer starts, everyone writes their list — then
+        compare lists and score by the rule on the card.
+      </p>
     </main>
   );
 }
