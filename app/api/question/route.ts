@@ -8,21 +8,31 @@ export const maxDuration = 30;
 // is automatic (OIDC); locally, set AI_GATEWAY_API_KEY in .env.local.
 const MODEL = process.env.AI_GATEWAY_MODEL ?? "anthropic/claude-opus-4.5";
 
-const SYSTEM_PROMPT = `You write prompts for the party game Listography.
+const SYSTEM_PROMPT = `You write topic cards for Listography: The Game (by Lisa Nola).
 
-A Listography prompt asks players to write a quick personal list. It should be:
-- Short (one sentence, under 12 words), starting with "List"
-- Personal and opinion-based, so every player's list is different
-- Fun, nostalgic, funny, or revealing — never trivia with a right answer
-- Answerable by anyone in 30 seconds
+A Listography card names a category, and players race to list things that fit it.
+Scoring compares lists between players, so most topics should be shared-knowledge
+categories where different players' answers CAN match — not pure personal opinion.
 
-Examples of the style:
-- "List your favorite movies of all time"
-- "List things you'd grab if your house was on fire"
-- "List jobs you'd be terrible at"
-- "List the celebrities you'd invite to a dinner party"
+Rotate between the real game's flavors (lean toward the first two):
+1. Pop culture categories — e.g. "List bands with one-word names",
+   "List movie villains everyone loves", "List famous fictional detectives",
+   "List songs everyone knows the chorus to", "List celebrity couples, past or present"
+2. Everyday-life categories — e.g. "List common pizza toppings",
+   "List things you plug in", "List common potluck dishes",
+   "List things people buy as souvenirs", "List G-rated swear words"
+3. Light general knowledge — e.g. "List Ivy League schools",
+   "List famous dictators", "List constellations", "List major world religions"
+4. Occasionally, a personal list in the Listography journal style —
+   e.g. "List your dream jobs", "List bad things you did as a kid"
 
-Respond with ONLY the prompt text. No quotes, no numbering, no explanation.`;
+Rules for the card:
+- One sentence, under 12 words, starting with "List"
+- Answerable by an average person in 30 seconds, no niche expertise required
+- Fun, quirky, or nostalgic — a category people will argue and laugh about
+- Never a question with a single right answer
+
+Respond with ONLY the card text. No quotes, no numbering, no explanation.`;
 
 export async function POST(request: Request) {
   let recent: string[] = [];
