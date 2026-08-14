@@ -117,10 +117,14 @@ export default function Home() {
         </label>
       </div>
 
-      <p className="hint">
-        Grab a pen. When the timer starts, write your list — score a point for
-        every answer nobody else wrote down.
-      </p>
+      <div className="hint">
+        <p>Grab a pen. When the timer starts, everyone writes their list.</p>
+        <p>
+          When time&apos;s up, compare lists and pick a way to score: a point for
+          every answer that <em>matches</em> another player&apos;s, or a point for
+          every answer <em>nobody else</em> wrote down.
+        </p>
+      </div>
     </main>
   );
 }
