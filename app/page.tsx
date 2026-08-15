@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isSimilar } from "@/lib/questions";
 
 const ROUND_SECONDS = 30;
+const RECENT_KEY = "listography-recent";
+const RECENT_MAX = 100;
 const SWIPE_MS = 380;
 
 // Card types from Listography: The Game — each question gets one at random.
@@ -88,8 +91,18 @@ export default function Home() {
 
   const nextQuestionRef = useRef<Promise<string> | null>(null);
 
+  // Questions seen recently, persisted across page reloads.
+  const rememberQuestion = useCallback((q: string) => {
+    recentRef.current = [...recentRef.current, q].slice(-RECENT_MAX);
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recentRef.current));
+    } catch {
+      // Storage unavailable (private mode etc.) — in-memory list still works.
+    }
+  }, []);
+
   // Fetch a single question from the API, retrying once if the server
-  // hands back something we've already seen.
+  // hands back something too close to one we've already seen.
   const fetchOne = useCallback(async (): Promise<string> => {
     const request = async (): Promise<string> => {
       const res = await fetch("/api/question", {
@@ -102,15 +115,15 @@ export default function Home() {
     };
     try {
       let q = await request();
-      if (recentRef.current.includes(q)) {
+      if (recentRef.current.some((r) => isSimilar(r, q))) {
         q = await request();
       }
-      recentRef.current = [...recentRef.current, q].slice(-40);
+      rememberQuestion(q);
       return q;
     } catch {
       return "List your favorite movies of all time";
     }
-  }, []);
+  }, [rememberQuestion]);
 
   // Generate the next question ahead of time, so dealing a new card is
   // instant when the swipe animation finishes.
@@ -129,6 +142,16 @@ export default function Home() {
   // Initial deal, then start prefetching the next card.
   useEffect(() => {
     (async () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+        if (Array.isArray(stored)) {
+          recentRef.current = stored
+            .filter((q): q is string => typeof q === "string")
+            .slice(-RECENT_MAX);
+        }
+      } catch {
+        // Corrupt/unavailable storage — start fresh.
+      }
       showQuestion(await fetchOne());
       prefetchNext();
     })();
