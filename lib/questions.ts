@@ -207,8 +207,40 @@ export const FALLBACK_QUESTIONS: string[] = [
   "List white lies everyone tells",
 ];
 
+// Words too common in "List ..." prompts to signal similarity.
+const STOPWORDS = new Set([
+  "list", "the", "a", "an", "of", "in", "on", "at", "to", "with", "and",
+  "or", "for", "about", "that", "you", "your", "youd", "youve", "every",
+  "everyone", "things", "people", "famous", "common", "most", "best",
+]);
+
+function tokens(q: string): Set<string> {
+  return new Set(
+    q
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter((w) => w.length > 0 && !STOPWORDS.has(w)),
+  );
+}
+
+// Fuzzy match so "List songs everyone knows the chorus to" counts as a
+// repeat of "List songs everyone knows the words to".
+export function isSimilar(a: string, b: string): boolean {
+  const ta = tokens(a);
+  const tb = tokens(b);
+  if (ta.size === 0 || tb.size === 0) return a.trim().toLowerCase() === b.trim().toLowerCase();
+  let overlap = 0;
+  for (const w of ta) {
+    if (tb.has(w)) overlap++;
+  }
+  return overlap / Math.min(ta.size, tb.size) >= 0.6;
+}
+
 export function randomFallbackQuestion(exclude: string[] = []): string {
-  const pool = FALLBACK_QUESTIONS.filter((q) => !exclude.includes(q));
+  const pool = FALLBACK_QUESTIONS.filter(
+    (q) => !exclude.some((e) => isSimilar(e, q)),
+  );
   const source = pool.length > 0 ? pool : FALLBACK_QUESTIONS;
   return source[Math.floor(Math.random() * source.length)];
 }

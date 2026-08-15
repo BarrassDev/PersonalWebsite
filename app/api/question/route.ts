@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import { randomFallbackQuestion } from "@/lib/questions";
+import { isSimilar, randomFallbackQuestion } from "@/lib/questions";
 
 export const maxDuration = 30;
 
@@ -67,6 +67,39 @@ const THEMES = [
   "nature and the outdoors",
   "romance and dating",
   "money and shopping",
+  "cars and transport",
+  "weather and seasons",
+  "parties and celebrations",
+  "superstitions and luck",
+  "toys and games",
+  "art and design",
+  "science and space",
+  "crime and mystery",
+  "health and the body",
+  "language and words",
+  "cities and neighborhoods",
+  "family life",
+  "hobbies and collections",
+  "advertising and brands",
+  "the 1980s",
+  "the 1990s",
+  "the 2000s",
+  "mornings and routines",
+  "night time",
+  "growing up",
+];
+
+const ANGLES = [
+  "give it a nostalgic twist",
+  "make it slightly absurd",
+  "make it something everyone secretly has an opinion on",
+  "make it something a kid could win at",
+  "make it oddly specific",
+  "make it about names or titles",
+  "make it about places",
+  "make it about firsts or lasts",
+  "make it about the worst of something, not the best",
+  "make it playful and a little mischievous",
 ];
 
 function pick<T>(arr: readonly T[]): T {
@@ -78,28 +111,37 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     if (Array.isArray(body?.recent)) {
-      recent = body.recent.filter((q: unknown) => typeof q === "string").slice(-40);
+      recent = body.recent.filter((q: unknown) => typeof q === "string").slice(-60);
     }
   } catch {
     // No/invalid body — proceed with no exclusions.
   }
 
   try {
-    const seed = `Write one new Listography card. Make it ${pick(FLAVORS)}, loosely inspired by the theme "${pick(THEMES)}" (a creative angle on it, not just the theme restated).`;
-    const { text } = await generateText({
-      model: MODEL,
-      system: SYSTEM_PROMPT,
-      prompt:
-        recent.length > 0
-          ? `${seed}\n\nDo not repeat or closely paraphrase any of these already-used cards:\n${recent
-              .map((q) => `- ${q}`)
-              .join("\n")}`
-          : seed,
-    });
+    // Generate, checking against recent questions with fuzzy matching —
+    // near-duplicates ("...knows the chorus to" vs "...knows the words to")
+    // count as repeats. Retry with fresh random seeds before falling back.
+    const avoid = [...recent];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const seed = `Write one new Listography card. Make it ${pick(FLAVORS)}, loosely inspired by the theme "${pick(THEMES)}" (a creative angle on it, not just the theme restated), and ${pick(ANGLES)}.`;
+      const { text } = await generateText({
+        model: MODEL,
+        system: SYSTEM_PROMPT,
+        prompt:
+          avoid.length > 0
+            ? `${seed}\n\nDo not repeat or closely paraphrase any of these already-used cards:\n${avoid
+                .map((q) => `- ${q}`)
+                .join("\n")}`
+            : seed,
+      });
 
-    const question = text.trim().replace(/^["']|["']$/g, "");
-    if (question.length > 0) {
-      return NextResponse.json({ question, source: "ai" });
+      const question = text.trim().replace(/^["']|["']$/g, "");
+      if (question.length > 0 && !avoid.some((q) => isSimilar(q, question))) {
+        return NextResponse.json({ question, source: "ai" });
+      }
+      if (question.length > 0) {
+        avoid.push(question);
+      }
     }
     return NextResponse.json({
       question: randomFallbackQuestion(recent),
