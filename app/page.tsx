@@ -31,6 +31,9 @@ export default function Home() {
   const [cardType, setCardType] = useState<CardType>(CARD_TYPES[0]);
   const [cardVersion, setCardVersion] = useState(0);
   const [dealing, setDealing] = useState(false);
+  const [drag, setDrag] = useState({ x: 0, active: false });
+  const [flyX, setFlyX] = useState<number | null>(null);
+  const dragStartXRef = useRef(0);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
   const [running, setRunning] = useState(false);
@@ -119,6 +122,8 @@ export default function Home() {
     setQuestion(q);
     setCardType(CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)]);
     setCardVersion((v) => v + 1);
+    setFlyX(null);
+    setDrag({ x: 0, active: false });
   }, []);
 
   // Initial deal, then start prefetching the next card.
@@ -129,19 +134,26 @@ export default function Home() {
     })();
   }, [fetchOne, prefetchNext, showQuestion]);
 
-  // Swipe the current card away and deal in the prefetched one.
-  const newQuestion = useCallback(async () => {
-    setDealing(true);
-    setRunning(false);
-    setSecondsLeft(ROUND_SECONDS);
-    const pending = nextQuestionRef.current ?? fetchOne();
-    nextQuestionRef.current = null;
-    const swipeDone = new Promise((r) => setTimeout(r, SWIPE_MS));
-    const [q] = await Promise.all([pending, swipeDone]);
-    showQuestion(q);
-    setDealing(false);
-    prefetchNext();
-  }, [fetchOne, prefetchNext, showQuestion]);
+  // Swipe the current card away and deal in the prefetched one. When
+  // triggered by a drag gesture, flyDirection sends it out that side.
+  const newQuestion = useCallback(
+    async (flyDirection?: number) => {
+      setDealing(true);
+      setRunning(false);
+      setSecondsLeft(ROUND_SECONDS);
+      if (flyDirection) {
+        setFlyX(flyDirection * Math.max(window.innerWidth, 700));
+      }
+      const pending = nextQuestionRef.current ?? fetchOne();
+      nextQuestionRef.current = null;
+      const swipeDone = new Promise((r) => setTimeout(r, SWIPE_MS));
+      const [q] = await Promise.all([pending, swipeDone]);
+      showQuestion(q);
+      setDealing(false);
+      prefetchNext();
+    },
+    [fetchOne, prefetchNext, showQuestion],
+  );
 
   useEffect(() => {
     if (!running || !timerEnabled) return;
@@ -180,6 +192,47 @@ export default function Home() {
     setSecondsLeft(ROUND_SECONDS);
   };
 
+  // Drag-to-swipe: past the threshold the card flies off and deals the next.
+  const SWIPE_THRESHOLD = 90;
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (busy) return;
+    dragStartXRef.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag({ x: 0, active: true });
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag.active) return;
+    setDrag({ x: e.clientX - dragStartXRef.current, active: true });
+  };
+
+  const onPointerEnd = () => {
+    if (!drag.active) return;
+    if (Math.abs(drag.x) > SWIPE_THRESHOLD) {
+      newQuestion(Math.sign(drag.x));
+    } else {
+      setDrag({ x: 0, active: false });
+    }
+  };
+
+  const cardStyle: React.CSSProperties =
+    flyX !== null
+      ? {
+          transform: `translateX(${flyX}px) rotate(${flyX > 0 ? 18 : -18}deg)`,
+          opacity: 0,
+          transition: `transform ${SWIPE_MS}ms ease-in, opacity ${SWIPE_MS}ms ease-in`,
+        }
+      : drag.active
+        ? {
+            transform: `translateX(${drag.x}px) rotate(${drag.x / 24}deg)`,
+            transition: "none",
+          }
+        : {
+            transform: "translateX(0) rotate(0)",
+            transition: "transform 0.25s ease",
+          };
+
   return (
     <main className="page">
       <h1 className="title">
@@ -189,7 +242,12 @@ export default function Home() {
       <div className="deck">
         <div
           key={cardVersion}
-          className={`qcard${dealing ? " swipe-out" : " deal-in"}`}
+          className={`qcard${dealing && flyX === null ? " swipe-out" : ""}${!dealing ? " deal-in" : ""}`}
+          style={cardStyle}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
         >
           <p className={`question${question === null ? " loading" : ""}`}>
             {question ?? "Shuffling the deck…"}
@@ -255,7 +313,7 @@ export default function Home() {
         </label>
 
         <div className="controls new-question">
-          <button className="primary" onClick={newQuestion} disabled={busy}>
+          <button className="primary" onClick={() => newQuestion()} disabled={busy}>
             New Question
           </button>
         </div>
@@ -263,7 +321,8 @@ export default function Home() {
 
       <p className="hint">
         Grab a pen. When the timer starts, everyone writes their list — then
-        compare lists and score by the rule on the card.
+        compare lists and score by the rule on the card. Swipe the card away
+        for a new one.
       </p>
     </main>
   );
