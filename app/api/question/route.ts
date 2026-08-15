@@ -1,11 +1,17 @@
+import { createGateway } from "@ai-sdk/gateway";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { isSimilar, randomFallbackQuestion } from "@/lib/questions";
 
 export const maxDuration = 30;
 
-// Model is resolved through the Vercel AI Gateway. On Vercel, authentication
-// is automatic (OIDC); locally, set AI_GATEWAY_API_KEY in .env.local.
+// Model is resolved through the Vercel AI Gateway, authenticated with the
+// AI_KEY env var (falling back to the SDK's default AI_GATEWAY_API_KEY,
+// then Vercel OIDC when deployed).
+const gateway = createGateway({
+  apiKey: process.env.AI_KEY ?? process.env.AI_GATEWAY_API_KEY,
+});
+
 const MODEL = process.env.AI_GATEWAY_MODEL ?? "anthropic/claude-opus-4.5";
 
 const SYSTEM_PROMPT = `You write topic cards for Listography: The Game (by Lisa Nola).
@@ -125,7 +131,7 @@ export async function POST(request: Request) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const seed = `Write one new Listography card. Make it ${pick(FLAVORS)}, loosely inspired by the theme "${pick(THEMES)}" (a creative angle on it, not just the theme restated), and ${pick(ANGLES)}.`;
       const { text } = await generateText({
-        model: MODEL,
+        model: gateway(MODEL),
         system: SYSTEM_PROMPT,
         prompt:
           avoid.length > 0
