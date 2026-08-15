@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const ROUND_SECONDS = 30;
+const SWIPE_MS = 380;
 
 // Card types from Listography: The Game — each question gets one at random.
 const CARD_TYPES = [
@@ -28,7 +29,8 @@ type CardType = (typeof CARD_TYPES)[number];
 export default function Home() {
   const [question, setQuestion] = useState<string | null>(null);
   const [cardType, setCardType] = useState<CardType>(CARD_TYPES[0]);
-  const [loading, setLoading] = useState(true);
+  const [cardVersion, setCardVersion] = useState(0);
+  const [dealing, setDealing] = useState(false);
   const [timerEnabled, setTimerEnabled] = useState(true);
   const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
   const [running, setRunning] = useState(false);
@@ -81,10 +83,7 @@ export default function Home() {
     }
   }, []);
 
-  const fetchQuestion = useCallback(async () => {
-    setLoading(true);
-    setRunning(false);
-    setSecondsLeft(ROUND_SECONDS);
+  const fetchQuestionData = useCallback(async () => {
     try {
       const res = await fetch("/api/question", {
         method: "POST",
@@ -98,12 +97,26 @@ export default function Home() {
       setQuestion("List your favorite movies of all time");
     }
     setCardType(CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)]);
-    setLoading(false);
   }, []);
 
+  // Initial deal.
   useEffect(() => {
-    fetchQuestion();
-  }, [fetchQuestion]);
+    (async () => {
+      await fetchQuestionData();
+      setCardVersion((v) => v + 1);
+    })();
+  }, [fetchQuestionData]);
+
+  // Swipe the current card away, fetch the next one, deal it in.
+  const newQuestion = useCallback(async () => {
+    setDealing(true);
+    setRunning(false);
+    setSecondsLeft(ROUND_SECONDS);
+    const swipeDone = new Promise((r) => setTimeout(r, SWIPE_MS));
+    await Promise.all([fetchQuestionData(), swipeDone]);
+    setCardVersion((v) => v + 1);
+    setDealing(false);
+  }, [fetchQuestionData]);
 
   useEffect(() => {
     if (!running || !timerEnabled) return;
@@ -124,6 +137,7 @@ export default function Home() {
     return () => clearInterval(id);
   }, [running, timerEnabled, secondsLeft, playAlarm, playTick]);
 
+  const busy = dealing || question === null;
   const timeUp = timerEnabled && secondsLeft <= 0;
 
   const startPauseReset = () => {
@@ -147,25 +161,32 @@ export default function Home() {
         List<span>ography</span>
       </h1>
 
-      <div className="card">
-        <p className={`question${loading ? " loading" : ""}`}>
-          {loading ? "Thinking of a good one…" : question}
-        </p>
+      <div className="deck">
+        <div
+          key={cardVersion}
+          className={`qcard${dealing ? " swipe-out" : " deal-in"}`}
+        >
+          <p className={`question${question === null ? " loading" : ""}`}>
+            {question ?? "Shuffling the deck…"}
+          </p>
 
-        {!loading && (
-          <div className="card-type">
-            <span className="card-type-name">{cardType.name}</span>
-            <div className="rule-row">
-              <span className="rule-label">Write</span>
-              <span className="rule-text">{cardType.write}</span>
+          {question !== null && (
+            <div className="card-type">
+              <span className="card-type-name">{cardType.name}</span>
+              <div className="rule-row">
+                <span className="rule-label">Write</span>
+                <span className="rule-text">{cardType.write}</span>
+              </div>
+              <div className="rule-row">
+                <span className="rule-label">Score</span>
+                <span className="rule-text">{cardType.score}</span>
+              </div>
             </div>
-            <div className="rule-row">
-              <span className="rule-label">Score</span>
-              <span className="rule-text">{cardType.score}</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
 
+      <div className="panel">
         {timerEnabled && (
           <>
             <div
@@ -178,11 +199,14 @@ export default function Home() {
               <button
                 className={!running && !timeUp ? "start" : ""}
                 onClick={startPauseReset}
-                disabled={loading}
+                disabled={busy}
               >
                 {timeUp ? "Reset" : running ? "Pause" : "Start"}
               </button>
-              <button onClick={resetTimer} disabled={loading || (!running && secondsLeft === ROUND_SECONDS)}>
+              <button
+                onClick={resetTimer}
+                disabled={busy || (!running && secondsLeft === ROUND_SECONDS)}
+              >
                 Reset
               </button>
             </div>
@@ -206,7 +230,7 @@ export default function Home() {
         </label>
 
         <div className="controls new-question">
-          <button className="primary" onClick={fetchQuestion} disabled={loading}>
+          <button className="primary" onClick={newQuestion} disabled={busy}>
             New Question
           </button>
         </div>
