@@ -32,29 +32,69 @@ Rules for the card:
 - Fun, quirky, or nostalgic — a category people will argue and laugh about
 - Never a question with a single right answer
 
-Respond with ONLY the card text. No quotes, no numbering, no explanation.`;
+Respond with ONLY the card text. No quotes, no numbering, no explanation.
+Never repeat the example topics from these instructions verbatim.`;
+
+// Random seeds injected per request so repeated calls don't converge on
+// the same handful of classic topics.
+const FLAVORS = [
+  "a pop culture category",
+  "a pop culture category",
+  "an everyday-life category",
+  "an everyday-life category",
+  "a light general knowledge category",
+  "a personal journal-style list",
+];
+
+const THEMES = [
+  "music",
+  "movies",
+  "TV shows",
+  "food and drink",
+  "school days",
+  "travel and holidays",
+  "sports",
+  "the internet and technology",
+  "fashion",
+  "animals",
+  "history",
+  "childhood nostalgia",
+  "celebrities and fame",
+  "books and stories",
+  "video games",
+  "around the house",
+  "work and jobs",
+  "nature and the outdoors",
+  "romance and dating",
+  "money and shopping",
+];
+
+function pick<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 export async function POST(request: Request) {
   let recent: string[] = [];
   try {
     const body = await request.json();
     if (Array.isArray(body?.recent)) {
-      recent = body.recent.filter((q: unknown) => typeof q === "string").slice(-20);
+      recent = body.recent.filter((q: unknown) => typeof q === "string").slice(-40);
     }
   } catch {
     // No/invalid body — proceed with no exclusions.
   }
 
   try {
+    const seed = `Write one new Listography card. Make it ${pick(FLAVORS)}, loosely inspired by the theme "${pick(THEMES)}" (a creative angle on it, not just the theme restated).`;
     const { text } = await generateText({
       model: MODEL,
       system: SYSTEM_PROMPT,
       prompt:
         recent.length > 0
-          ? `Write one new Listography prompt. Avoid anything similar to these already-used prompts:\n${recent
+          ? `${seed}\n\nDo not repeat or closely paraphrase any of these already-used cards:\n${recent
               .map((q) => `- ${q}`)
               .join("\n")}`
-          : "Write one new Listography prompt.",
+          : seed,
     });
 
     const question = text.trim().replace(/^["']|["']$/g, "");

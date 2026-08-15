@@ -83,40 +83,65 @@ export default function Home() {
     }
   }, []);
 
-  const fetchQuestionData = useCallback(async () => {
-    try {
+  const nextQuestionRef = useRef<Promise<string> | null>(null);
+
+  // Fetch a single question from the API, retrying once if the server
+  // hands back something we've already seen.
+  const fetchOne = useCallback(async (): Promise<string> => {
+    const request = async (): Promise<string> => {
       const res = await fetch("/api/question", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recent: recentRef.current }),
       });
       const data = await res.json();
-      setQuestion(data.question);
-      recentRef.current = [...recentRef.current, data.question].slice(-20);
+      return data.question as string;
+    };
+    try {
+      let q = await request();
+      if (recentRef.current.includes(q)) {
+        q = await request();
+      }
+      recentRef.current = [...recentRef.current, q].slice(-40);
+      return q;
     } catch {
-      setQuestion("List your favorite movies of all time");
+      return "List your favorite movies of all time";
     }
-    setCardType(CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)]);
   }, []);
 
-  // Initial deal.
+  // Generate the next question ahead of time, so dealing a new card is
+  // instant when the swipe animation finishes.
+  const prefetchNext = useCallback(() => {
+    nextQuestionRef.current = fetchOne();
+  }, [fetchOne]);
+
+  const showQuestion = useCallback((q: string) => {
+    setQuestion(q);
+    setCardType(CARD_TYPES[Math.floor(Math.random() * CARD_TYPES.length)]);
+    setCardVersion((v) => v + 1);
+  }, []);
+
+  // Initial deal, then start prefetching the next card.
   useEffect(() => {
     (async () => {
-      await fetchQuestionData();
-      setCardVersion((v) => v + 1);
+      showQuestion(await fetchOne());
+      prefetchNext();
     })();
-  }, [fetchQuestionData]);
+  }, [fetchOne, prefetchNext, showQuestion]);
 
-  // Swipe the current card away, fetch the next one, deal it in.
+  // Swipe the current card away and deal in the prefetched one.
   const newQuestion = useCallback(async () => {
     setDealing(true);
     setRunning(false);
     setSecondsLeft(ROUND_SECONDS);
+    const pending = nextQuestionRef.current ?? fetchOne();
+    nextQuestionRef.current = null;
     const swipeDone = new Promise((r) => setTimeout(r, SWIPE_MS));
-    await Promise.all([fetchQuestionData(), swipeDone]);
-    setCardVersion((v) => v + 1);
+    const [q] = await Promise.all([pending, swipeDone]);
+    showQuestion(q);
     setDealing(false);
-  }, [fetchQuestionData]);
+    prefetchNext();
+  }, [fetchOne, prefetchNext, showQuestion]);
 
   useEffect(() => {
     if (!running || !timerEnabled) return;
