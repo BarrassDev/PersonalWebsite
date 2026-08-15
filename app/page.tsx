@@ -165,7 +165,11 @@ export default function Home() {
               {timeUp ? "Time!" : `0:${String(secondsLeft).padStart(2, "0")}`}
             </div>
             <div className="controls">
-              <button onClick={startPauseReset} disabled={loading}>
+              <button
+                className={!running && !timeUp ? "start" : ""}
+                onClick={startPauseReset}
+                disabled={loading}
+              >
                 {timeUp ? "Reset" : running ? "Pause" : "Start"}
               </button>
               <button onClick={resetTimer} disabled={loading || (!running && secondsLeft === ROUND_SECONDS)}>
@@ -174,12 +178,6 @@ export default function Home() {
             </div>
           </>
         )}
-
-        <div className="controls">
-          <button className="primary" onClick={fetchQuestion} disabled={loading}>
-            New Question
-          </button>
-        </div>
 
         <label className="toggle-row">
           <span className="switch">
@@ -196,6 +194,12 @@ export default function Home() {
           </span>
           30-second timer
         </label>
+
+        <div className="controls new-question">
+          <button className="primary" onClick={fetchQuestion} disabled={loading}>
+            New Question
+          </button>
+        </div>
       </div>
 
       <p className="hint">

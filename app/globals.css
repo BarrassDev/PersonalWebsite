@@ -147,6 +147,24 @@ button:disabled {
   cursor: not-allowed;
 }
 
+button.start {
+  background: #3d8b5f;
+  border-color: #3d8b5f;
+  color: #fff;
+}
+
+button.start:hover:not(:disabled) {
+  background: #326f4d;
+  border-color: #326f4d;
+}
+
+.new-question {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(34, 48, 28, 0.15);
+  width: 100%;
+}
+
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
