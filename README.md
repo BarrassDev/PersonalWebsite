@@ -20,21 +20,22 @@ Then open http://localhost:3000.
 To get AI-generated questions locally, create a `.env.local` with an [AI Gateway API key](https://vercel.com/docs/ai-gateway):
 
 ```
-AI_GATEWAY_API_KEY=your-key-here
+AI_KEY=your-key-here
 ```
 
 Without a key the app still works using the fallback question bank.
 
 ## Deploying to Vercel
 
-Deploy as a standard Next.js app. On Vercel, AI Gateway authentication is automatic (via OIDC) — no API key needed.
+Deploy as a standard Next.js app.
 
-Optional environment variables:
+Environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `AI_KEY` | — | Vercel AI Gateway API key used to generate questions |
+| `AI_GATEWAY_API_KEY` | — | Fallback key name (the AI SDK's default); OIDC is used on Vercel if neither key is set |
 | `AI_GATEWAY_MODEL` | `anthropic/claude-opus-4.5` | AI Gateway model slug used to generate questions |
-| `AI_GATEWAY_API_KEY` | — | Only needed outside Vercel |
 
 ## Legacy site
 
