@@ -8,15 +8,18 @@ const ROUND_SECONDS = 30;
 const CARD_TYPES = [
   {
     name: "One-on-One",
-    rule: "match with exactly one other player — score for each answer that only one other person also wrote",
+    write: "Write up to 10 answers",
+    score: "1 point for each answer that exactly 1 other player also wrote",
   },
   {
     name: "Threefold",
-    rule: "write up to 3 answers — score a point every time an answer matches another player's",
+    write: "Write up to 3 answers",
+    score: "1 point for every player who wrote the same answer as you",
   },
   {
     name: "Forgotten Four",
-    rule: "write 4 answers — score for each answer nobody else wrote down",
+    write: "Write exactly 4 answers",
+    score: "1 point for each answer that nobody else wrote",
   },
 ] as const;
 
@@ -150,10 +153,17 @@ export default function Home() {
         </p>
 
         {!loading && (
-          <p className="card-type">
+          <div className="card-type">
             <span className="card-type-name">{cardType.name}</span>
-            For this question, {cardType.rule}.
-          </p>
+            <div className="rule-row">
+              <span className="rule-label">Write</span>
+              <span className="rule-text">{cardType.write}</span>
+            </div>
+            <div className="rule-row">
+              <span className="rule-label">Score</span>
+              <span className="rule-text">{cardType.score}</span>
+            </div>
+          </div>
         )}
 
         {timerEnabled && (

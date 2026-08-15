@@ -71,13 +71,43 @@ body {
 
 .card-type {
   font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--muted);
+  line-height: 1.45;
+  color: var(--ink);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
+  align-items: stretch;
+  gap: 0.5rem;
   margin-top: -0.75rem;
+  background: rgba(34, 48, 28, 0.06);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  width: 100%;
+}
+
+.card-type .card-type-name {
+  align-self: center;
+  margin-bottom: 0.2rem;
+}
+
+.rule-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  text-align: left;
+}
+
+.rule-label {
+  flex-shrink: 0;
+  width: 3.2rem;
+  font-size: 0.7rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rule-text {
+  font-weight: 600;
 }
 
 .card-type-name {
